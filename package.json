@@ -17,7 +17,10 @@
     "dist": "npm run build:app && electron-builder",
     "dist:win": "npm run build:app && electron-builder --win --dir",
     "dist:win:portable": "npm run build:app && electron-builder --win portable",
+    "dist:win:safe": "powershell -ExecutionPolicy Bypass -File scripts/clean-release.ps1 && npm run build:app && electron-builder --win --dir",
     "package:portable": "powershell -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/create-release.ps1",
+    "release:skip-build": "powershell -ExecutionPolicy Bypass -File scripts/create-release.ps1 -SkipBuild",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
@@ -33,7 +36,7 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.3.1",
-    "electron-store": "^11.0.2",
+    "electron-store": "^8.1.0",
     "playwright": "^1.40.0"
   },
   "devDependencies": {
@@ -67,7 +70,8 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
     }
   }
 }
