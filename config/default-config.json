@@ -1,0 +1,14 @@
+{
+  "defaultPagesDir": "Recordings/pages",
+  "defaultTestsDir": "Recordings/tests",
+  "defaultModule": "",
+  "d365Url": "",
+  "storageStatePath": "",
+  "locatorStrategy": {
+    "preferRole": true,
+    "preferLabel": true,
+    "fallbackToCSS": true,
+    "flagFallbacks": true
+  }
+}
+

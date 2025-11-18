@@ -1,0 +1,133 @@
+.recording-panel {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.recording-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.recording-header h2 {
+  color: #2c3e50;
+}
+
+.recording-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #95a5a6;
+}
+
+.status-indicator.recording {
+  background-color: #e74c3c;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-indicator.stopped {
+  background-color: #95a5a6;
+}
+
+.recording-controls {
+  margin-bottom: 2rem;
+}
+
+.stop-button {
+  padding: 0.75rem 2rem;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.stop-button:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.stop-button:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.steps-list {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.steps-list h3 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.no-steps {
+  padding: 2rem;
+  text-align: center;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.steps {
+  list-style: none;
+}
+
+.step-item {
+  display: grid;
+  grid-template-columns: 50px 1fr 100px 150px;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #ecf0f1;
+  align-items: center;
+}
+
+.step-item:last-child {
+  border-bottom: none;
+}
+
+.step-item:hover {
+  background-color: #f8f9fa;
+}
+
+.step-number {
+  font-weight: 600;
+  color: #3498db;
+}
+
+.step-description {
+  color: #2c3e50;
+}
+
+.step-action {
+  font-size: 0.875rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+}
+
+.step-page {
+  font-size: 0.875rem;
+  color: #95a5a6;
+  font-family: monospace;
+}
+

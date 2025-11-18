@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+*.local
+src/ui/dist/
+src/ui/node_modules/
+storage-state.json
+storage_state/
+release/
+*.cache
+.electron-builder-cache/
+
