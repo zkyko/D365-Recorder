@@ -15,8 +15,9 @@
     "dev:watch": "tsc --watch",
     "install:all": "npm install && cd src/ui && npm install",
     "dist": "npm run build:app && electron-builder",
-    "dist:win": "npm run build:app && electron-builder --win",
-    "dist:win:dir": "npm run build:app && electron-builder --win --dir",
+    "dist:win": "npm run build:app && electron-builder --win --dir",
+    "dist:win:portable": "npm run build:app && electron-builder --win portable",
+    "package:portable": "powershell -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
@@ -61,13 +62,13 @@
       "node_modules/@playwright/**"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico",
-      "forceCodeSigning": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "target": [
+        {
+          "target": "dir",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
     }
   }
 }
