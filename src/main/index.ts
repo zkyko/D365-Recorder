@@ -99,7 +99,8 @@ function registerConfigHandlers(): void {
       const storagePath = configManager.getStorageStatePath();
       
       // Use the existing BrowserManager to perform login
-      const { BrowserManager } = require('../core/playwright/browser-manager');
+      const browserManagerPath = path.join(__dirname, '..', 'core', 'playwright', 'browser-manager');
+      const { BrowserManager } = require(browserManagerPath);
       const browserManager = new BrowserManager();
       
       // Launch browser

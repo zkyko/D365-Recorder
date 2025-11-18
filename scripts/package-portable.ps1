@@ -13,9 +13,11 @@ if (-not (Test-Path $unpackedPath)) {
 }
 
 # Check if executable is running
-$exePath = Join-Path $unpackedPath "D365 Auto Recorder & POM Generator.exe"
-if (Get-Process | Where-Object { $_.Path -eq (Resolve-Path $exePath).Path }) {
-    Write-Host "Warning: The application is currently running. Please close it first." -ForegroundColor Yellow
+$exeName = "D365 Auto Recorder & POM Generator.exe"
+$exePath = Join-Path $unpackedPath $exeName
+$processes = Get-Process | Where-Object { $_.ProcessName -like "*D365*" -or $_.MainWindowTitle -like "*D365*" }
+if ($processes) {
+    Write-Host "Warning: The application may be running. Please close it first." -ForegroundColor Yellow
     Write-Host "Press any key to continue anyway, or Ctrl+C to cancel..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
@@ -50,13 +52,13 @@ Write-Host "Creating ZIP archive..." -ForegroundColor Green
 Compress-Archive -Path $portablePath -DestinationPath $zipPath -Force
 
 Write-Host ""
-Write-Host "✓ Portable package created successfully!" -ForegroundColor Green
+Write-Host "Portable package created successfully!" -ForegroundColor Green
 Write-Host "  Location: $zipPath" -ForegroundColor Cyan
-Write-Host "  Size: $([math]::Round((Get-Item $zipPath).Length / 1MB, 2)) MB" -ForegroundColor Cyan
+$zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+Write-Host "  Size: $zipSize MB" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "To distribute:" -ForegroundColor Yellow
 Write-Host "  1. Share the ZIP file: $zipPath" -ForegroundColor White
 Write-Host "  2. Recipients unzip it anywhere" -ForegroundColor White
-Write-Host "  3. Run: D365 Auto Recorder & POM Generator.exe" -ForegroundColor White
+Write-Host "  3. Run the executable from the unzipped folder" -ForegroundColor White
 Write-Host ""
-

@@ -52,8 +52,7 @@
       "buildResources": "build"
     },
     "files": [
-      "dist/main/**/*",
-      "dist/ui/**/*",
+      "dist/**/*",
       "package.json",
       "node_modules/**/*"
     ],
