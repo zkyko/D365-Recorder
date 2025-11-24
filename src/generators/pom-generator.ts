@@ -5,7 +5,7 @@ import { makePageClassName } from '../core/utils/identifiers';
 import { PageRegistryManager } from '../core/registry/page-registry';
 
 /**
- * Generates Page Object Model classes in JavaScript
+ * Generates Page Object Model classes in TypeScript
  */
 export class POMGenerator {
   private pageRegistry: PageRegistryManager;
@@ -53,7 +53,7 @@ export class POMGenerator {
       const registryEntry = this.pageRegistry.getPage(pageId);
       const fileName = this.pageIdToFileName(pageId);
       const modulePath = module ? path.join('d365', module) : 'd365';
-      const filePath = path.join(outputDir, modulePath, `${fileName}.page.js`);
+      const filePath = path.join(outputDir, modulePath, `${fileName}.page.ts`);
       
       // Check if file exists to avoid duplicates
       const existingContent = this.readExistingFile(filePath);
@@ -88,12 +88,13 @@ export class POMGenerator {
     const existingMethods = this.extractExistingMethods(existingContent);
     const existingFields = this.extractExistingFields(existingContent);
 
-    let content = `const { Page } = require('@playwright/test');\n\n`;
+    let content = `import { Page } from '@playwright/test';\n`;
+    content += `import { D365BasePage } from '../../utils/d365-base';\n\n`;
     
     // Check if base class exists
     const hasBaseClass = existingContent?.includes('extends') || false;
     if (!hasBaseClass) {
-      content += `class ${className} {\n`;
+      content += `export class ${className} extends D365BasePage {\n`;
       
       // Add static properties for page identity
       if (registryEntry) {
@@ -112,18 +113,17 @@ export class POMGenerator {
         content += this.generateStaticURLMethods(className, registryEntry);
       }
       
-      content += `  /**\n`;
-      content += `   * @param {import('@playwright/test').Page} page\n`;
-      content += `   */\n`;
-      content += `  constructor(page) {\n`;
-      content += `    this.page = page;\n\n`;
+      content += `  constructor(page: Page) {\n`;
+      content += `    super(page);\n\n`;
       
-      // Generate locator fields INSIDE constructor (after this.page is set)
+      // Generate locator fields INSIDE constructor (after super call)
+      // Use contentFrame for frame-aware locators
       const locatorFields = new Map<string, string>();
       for (const step of steps) {
         const fieldName = step.fieldName || this.generateFieldName(step);
         if (!existingFields.has(fieldName) && !locatorFields.has(fieldName)) {
-          const locatorCode = this.locatorToCode(step.locator, 'page'); // Use 'page' param, not 'this.page'
+          // Use contentFrame for D365 frame-aware locators
+          const locatorCode = this.locatorToCode(step.locator, 'this.contentFrame');
           locatorFields.set(fieldName, `    this.${fieldName} = ${locatorCode};\n`);
         }
       }
@@ -166,8 +166,7 @@ export class POMGenerator {
       }
     }
 
-    content += `}\n\n`;
-    content += `module.exports = { ${className} };\n`;
+    content += `}\n`;
 
     return content;
   }
@@ -178,14 +177,13 @@ export class POMGenerator {
   private generateStaticURLMethods(className: string, registryEntry: PageRegistryEntry): string {
     let methods = '';
     
+    // Import Page type is already at the top, so we can use it in static methods
+    
     // url() method
     methods += `  /**\n`;
     methods += `   * Generate URL for this page\n`;
-    methods += `   * @param {Object} opts - Options\n`;
-    methods += `   * @param {string} [opts.cmp] - Company code (defaults to '${registryEntry.cmp || 'FH'}')\n`;
-    methods += `   * @returns {string} URL path with query parameters\n`;
     methods += `   */\n`;
-    methods += `  static url({ cmp = '${registryEntry.cmp || 'FH'}' } = {}) {\n`;
+    methods += `  static url({ cmp = '${registryEntry.cmp || 'FH'}' }: { cmp?: string } = {}): string {\n`;
     methods += `    const params = new URLSearchParams();\n`;
     if (registryEntry.cmp) {
       methods += `    if (cmp) params.set('cmp', cmp);\n`;
@@ -200,10 +198,8 @@ export class POMGenerator {
     // matchesUrl() method
     methods += `  /**\n`;
     methods += `   * Check if a URL matches this page\n`;
-    methods += `   * @param {string} url - URL to check\n`;
-    methods += `   * @returns {boolean} True if URL matches this page\n`;
     methods += `   */\n`;
-    methods += `  static matchesUrl(url) {\n`;
+    methods += `  static matchesUrl(url: string): boolean {\n`;
     methods += `    try {\n`;
     methods += `      const u = new URL(url, 'https://dummy'); // base for parsing\n`;
     if (registryEntry.mi) {
@@ -220,11 +216,8 @@ export class POMGenerator {
     // goto() method
     methods += `  /**\n`;
     methods += `   * Navigate to this page\n`;
-    methods += `   * @param {import('@playwright/test').Page} page - Playwright page object\n`;
-    methods += `   * @param {Object} [opts] - Options\n`;
-    methods += `   * @param {string} [opts.cmp] - Company code\n`;
     methods += `   */\n`;
-    methods += `  static async goto(page, opts = {}) {\n`;
+    methods += `  static async goto(page: Page, opts: { cmp?: string } = {}): Promise<void> {\n`;
     methods += `    // Navigate with reasonable timeout for D365\n`;
     methods += `    await page.goto(this.url(opts), { waitUntil: 'domcontentloaded', timeout: 120_000 });\n`;
     methods += `    // Wait for D365 to be ready\n`;
@@ -234,7 +227,7 @@ export class POMGenerator {
     methods += `   * Wait for D365 to be fully loaded\n`;
     methods += `   * @private\n`;
     methods += `   */\n`;
-    methods += `  static async waitForD365Ready(page) {\n`;
+    methods += `  private static async waitForD365Ready(page: Page): Promise<void> {\n`;
     methods += `    const selectors = [\n`;
     methods += `      '[data-dyn-role="shell"]',\n`;
     methods += `      '.dyn-shell',\n`;
@@ -269,10 +262,14 @@ export class POMGenerator {
 
   /**
    * Convert locator definition to Playwright code
-   * @param pageReference - Either 'page' (for constructor) or 'this.page' (for class fields)
+   * @param pageReference - Frame locator reference (e.g., 'this.contentFrame' or 'this.page')
    */
   private locatorToCode(locator: LocatorDefinition, pageReference: string = 'this.page'): string {
     switch (locator.strategy) {
+      case 'd365-controlname':
+        // D365-specific: data-dyn-controlname (most stable for D365)
+        return `${pageReference}.locator('[data-dyn-controlname="${locator.controlName}"]')`;
+      
       case 'role':
         return `${pageReference}.getByRole('${locator.role}', { name: '${this.escapeString(locator.name)}' })`;
       
@@ -386,25 +383,56 @@ export class POMGenerator {
   }
 
   /**
-   * Generate a method implementation
+   * Generate a method implementation with D365-specific patterns
    */
   private generateMethod(step: RecordedStep, methodName: string, fieldName: string): string {
     let method = `  async ${methodName}(`;
     
-    if (step.action === 'fill' || step.action === 'select') {
-      method += `value`;
+    // Generate semantic parameter names based on action
+    if (step.action === 'fill') {
+      // Extract field name from description for better parameter naming
+      const match = step.description.match(/fill\s+["']([^"']+)["']/i);
+      if (match) {
+        const fieldNameParam = match[1].split(/\s+/).map(w => 
+          w.charAt(0).toUpperCase() + w.slice(1)
+        ).join('');
+        method += `${this.toCamelCase(fieldNameParam)}: string`;
+      } else {
+        method += `value: string`;
+      }
+    } else if (step.action === 'select') {
+      const match = step.description.match(/select\s+["']([^"']+)["']/i);
+      if (match) {
+        const fieldNameParam = match[1].split(/\s+/).map(w => 
+          w.charAt(0).toUpperCase() + w.slice(1)
+        ).join('');
+        method += `${this.toCamelCase(fieldNameParam)}: string`;
+      } else {
+        method += `value: string`;
+      }
     }
     
-    method += `) {\n`;
+    method += `): Promise<void> {\n`;
+    
+    // Always wait for D365 to be ready before actions
+    method += `    await this.waitForNotBusy();\n`;
     
     if (step.action === 'click') {
       method += `    await this.${fieldName}.click();\n`;
+      method += `    await this.waitForNotBusy();\n`;
     } else if (step.action === 'fill') {
-      method += `    await this.${fieldName}.fill(value);\n`;
+      const paramName = method.match(/\((\w+):/)?.[1] || 'value';
+      method += `    await this.${fieldName}.fill(${paramName});\n`;
+      // CRITICAL: Tab key press for D365 validation/calculation
+      method += `    await this.${fieldName}.press('Tab');\n`;
+      method += `    await this.waitForNotBusy();\n`;
     } else if (step.action === 'select') {
-      method += `    await this.${fieldName}.selectOption(value);\n`;
+      const paramName = method.match(/\((\w+):/)?.[1] || 'value';
+      method += `    await this.${fieldName}.selectOption(${paramName});\n`;
+      method += `    await this.waitForNotBusy();\n`;
     } else if (step.action === 'navigate') {
       method += `    await this.page.goto(process.env.D365_URL || '');\n`;
+      method += `    await this.waitForNotBusy();\n`;
     }
     
     method += `  }\n`;

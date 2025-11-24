@@ -52,6 +52,9 @@ export class EventListeners {
         return path.join(' > ');
       };
 
+      // Debounce map for input events (to avoid recording each keystroke)
+      const inputDebounceTimers = new Map<HTMLElement, number>();
+
       // Intercept click events
       document.addEventListener('click', async (event: MouseEvent) => {
         const target = event.target as HTMLElement;
@@ -68,22 +71,35 @@ export class EventListeners {
         }
       }, true);
 
-      // Intercept input events
+      // Intercept input events (debounced to avoid multiple steps per field)
       document.addEventListener('input', async (event: Event) => {
         const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-          if ((window as any).recorderOnInput) {
-            try {
-              const elementId = getElementId(target);
-              await (window as any).recorderOnInput({
-                selector: elementId,
-                value: target.value,
-                timestamp: Date.now(),
-              });
-            } catch (error) {
-              // Silently ignore if function not available yet
-            }
+          // Clear existing timer for this element
+          const existingTimer = inputDebounceTimers.get(target as HTMLElement);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
           }
+          
+          // Set new timer - only fire after 800ms of no typing
+          const timer = window.setTimeout(async () => {
+            if ((window as any).recorderOnInput) {
+              try {
+                const elementId = getElementId(target as HTMLElement);
+                await (window as any).recorderOnInput({
+                  selector: elementId,
+                  value: target.value,
+                  timestamp: Date.now(),
+                });
+                // Remove timer from map after firing
+                inputDebounceTimers.delete(target as HTMLElement);
+              } catch (error) {
+                // Silently ignore if function not available yet
+              }
+            }
+          }, 800); // 800ms debounce delay
+          
+          inputDebounceTimers.set(target as HTMLElement, timer);
         }
       }, true);
 
@@ -135,6 +151,9 @@ export class EventListeners {
         return path.join(' > ');
       };
 
+      // Debounce map for input events (to avoid recording each keystroke)
+      const inputDebounceTimers = new Map<HTMLElement, number>();
+
       // Intercept click events
       document.addEventListener('click', async (event: MouseEvent) => {
         const target = event.target as HTMLElement;
@@ -151,22 +170,35 @@ export class EventListeners {
         }
       }, true);
 
-      // Intercept input events
+      // Intercept input events (debounced to avoid multiple steps per field)
       document.addEventListener('input', async (event: Event) => {
         const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-          if ((window as any).recorderOnInput) {
-            try {
-              const elementId = getElementId(target);
-              await (window as any).recorderOnInput({
-                selector: elementId,
-                value: target.value,
-                timestamp: Date.now(),
-              });
-            } catch (error) {
-              console.error('Recorder input error:', error);
-            }
+          // Clear existing timer for this element
+          const existingTimer = inputDebounceTimers.get(target as HTMLElement);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
           }
+          
+          // Set new timer - only fire after 800ms of no typing
+          const timer = window.setTimeout(async () => {
+            if ((window as any).recorderOnInput) {
+              try {
+                const elementId = getElementId(target as HTMLElement);
+                await (window as any).recorderOnInput({
+                  selector: elementId,
+                  value: target.value,
+                  timestamp: Date.now(),
+                });
+                // Remove timer from map after firing
+                inputDebounceTimers.delete(target as HTMLElement);
+              } catch (error) {
+                console.error('Recorder input error:', error);
+              }
+            }
+          }, 800); // 800ms debounce delay
+          
+          inputDebounceTimers.set(target as HTMLElement, timer);
         }
       }, true);
 

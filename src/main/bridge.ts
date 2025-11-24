@@ -70,12 +70,95 @@ export class IPCBridge {
   }
 
   /**
+   * Check storage state and determine next steps
+   */
+  async checkStorageState(): Promise<{
+    status: 'valid' | 'missing' | 'invalid' | 'expired' | 'error';
+    message: string;
+    nextSteps: string[];
+    storageStatePath: string;
+    details?: any;
+  }> {
+    const storageStatePath = this.getStorageStatePath();
+    const d365Url = this.getD365Url() || process.env.D365_URL || '';
+    
+    if (!d365Url) {
+      return {
+        status: 'error',
+        message: 'D365 URL not configured',
+        nextSteps: ['Configure D365 URL in settings'],
+        storageStatePath,
+      };
+    }
+
+    if (!fs.existsSync(storageStatePath)) {
+      return {
+        status: 'missing',
+        message: 'Storage state file does not exist',
+        nextSteps: [
+          'Go to Setup screen',
+          'Enter D365 URL and credentials',
+          'Click "Sign in to D365" to create storage state',
+        ],
+        storageStatePath,
+      };
+    }
+
+    // Test if storage state works
+    const testResult = await this.browserManager.testStorageState(storageStatePath, d365Url);
+    
+    if (!testResult.isValid) {
+      return {
+        status: 'invalid',
+        message: testResult.error || 'Storage state is invalid',
+        nextSteps: [
+          'Storage state file is corrupted or invalid',
+          'Go to Setup screen',
+          'Re-enter credentials and sign in again',
+        ],
+        storageStatePath,
+        details: testResult.details,
+      };
+    }
+
+    if (!testResult.isWorking) {
+      return {
+        status: 'expired',
+        message: 'Storage state exists but authentication has expired',
+        nextSteps: [
+          'Go to Setup screen',
+          'Re-enter credentials and sign in again',
+          'This will update the storage state',
+        ],
+        storageStatePath,
+        details: testResult.details,
+      };
+    }
+
+    return {
+      status: 'valid',
+      message: 'Storage state is valid and working',
+      nextSteps: [
+        'You can start recording sessions',
+        'Tests can run with authentication',
+      ],
+      storageStatePath,
+      details: testResult.details,
+    };
+  }
+
+  /**
    * Register all IPC handlers
    */
   registerHandlers(): void {
     // Authentication
     ipcMain.handle('auth:check', async () => {
       return this.checkAuthentication();
+    });
+
+    // Storage state checker
+    ipcMain.handle('config:check-storage-state', async () => {
+      return await this.checkStorageState();
     });
 
     ipcMain.handle('auth:login', async (_, credentials: { username: string; password: string; d365Url?: string }) => {
@@ -272,6 +355,22 @@ export class IPCBridge {
         pagesDir,
         outputConfig.module || session.module
       );
+
+      // Create initial data file for data-driven tests
+      const parameters = this.specGenerator.detectParametersFromSteps(steps);
+      const modulePath = outputConfig.module || session.module ? path.join('d365', outputConfig.module || session.module) : 'd365';
+      const specDir = path.join(testsDir, modulePath);
+      const fileName = this.specGenerator.flowNameToFileName(session.flowName);
+      const dataDir = path.join(specDir, 'data');
+      const dataFilePath = path.join(dataDir, `${fileName}Data.json`);
+      
+      // Create data file if it doesn't exist
+      if (!fs.existsSync(dataFilePath)) {
+        const dataContent = this.specGenerator.generateInitialDataFile(parameters);
+        fs.mkdirSync(dataDir, { recursive: true });
+        fs.writeFileSync(dataFilePath, dataContent, 'utf-8');
+        console.log(`Generated: ${dataFilePath}`);
+      }
 
       // Write all files
       const allFiles = [...pomFiles, specFile];

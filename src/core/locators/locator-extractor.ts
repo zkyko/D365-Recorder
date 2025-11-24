@@ -7,12 +7,13 @@ import { LocatorDefinition } from '../../types';
 export class LocatorExtractor {
   /**
    * Extract the best locator for an element following priority order:
-   * 1. getByRole(role, { name })
-   * 2. getByLabel(text)
-   * 3. getByPlaceholder(text)
-   * 4. getByText(text) with filters
-   * 5. data-test-id attributes
-   * 6. CSS/XPath (fallback, flagged)
+   * 1. D365-specific: data-dyn-controlname (highest priority for D365)
+   * 2. getByRole(role, { name })
+   * 3. getByLabel(text) / aria-label
+   * 4. getByPlaceholder(text)
+   * 5. getByText(text) with filters
+   * 6. data-test-id attributes
+   * 7. CSS/XPath (fallback, flagged)
    */
   async extractLocator(page: Page, element: ElementHandle<HTMLElement> | null): Promise<LocatorDefinition> {
     try {
@@ -20,27 +21,31 @@ export class LocatorExtractor {
         return { strategy: 'css', selector: 'body', flagged: true };
       }
 
-      // Priority 1: Try role + name using accessibility snapshot
+      // Priority 1: D365-specific data-dyn-controlname (most stable for D365)
+      const d365ControlName = await this.tryD365ControlName(element);
+      if (d365ControlName) return d365ControlName;
+
+      // Priority 2: Try role + name using accessibility snapshot
       const roleLocator = await this.tryRole(page, element);
       if (roleLocator) return roleLocator;
 
-      // Priority 2: Try label
+      // Priority 3: Try label / aria-label
       const labelLocator = await this.tryLabel(page, element);
       if (labelLocator) return labelLocator;
 
-      // Priority 3: Try placeholder
+      // Priority 4: Try placeholder
       const placeholderLocator = await this.tryPlaceholder(element);
       if (placeholderLocator) return placeholderLocator;
 
-      // Priority 4: Try text (short text only)
+      // Priority 5: Try text (short text only)
       const textLocator = await this.tryText(element);
       if (textLocator) return textLocator;
 
-      // Priority 5: Try data-test-id
+      // Priority 6: Try data-test-id
       const testIdLocator = await this.tryTestId(element);
       if (testIdLocator) return testIdLocator;
 
-      // Priority 6: Fallback CSS
+      // Priority 7: Fallback CSS
       const cssSelector = await this.buildCssSelector(element);
       if (cssSelector) {
         return { strategy: 'css', selector: cssSelector, flagged: true };
@@ -51,6 +56,27 @@ export class LocatorExtractor {
     } catch (error) {
       console.error('Error extracting locator:', error);
       return { strategy: 'css', selector: 'body', flagged: true };
+    }
+  }
+
+  /**
+   * Try to get D365-specific data-dyn-controlname locator
+   * This is the most stable locator for D365 F&O controls
+   */
+  private async tryD365ControlName(element: ElementHandle<HTMLElement>): Promise<LocatorDefinition | null> {
+    try {
+      const controlName = await element.evaluate((el: HTMLElement) => {
+        return el.getAttribute('data-dyn-controlname') || null;
+      });
+
+      if (!controlName) return null;
+
+      return {
+        strategy: 'd365-controlname',
+        controlName: controlName,
+      };
+    } catch (error) {
+      return null;
     }
   }
 

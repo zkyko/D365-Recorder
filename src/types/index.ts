@@ -37,6 +37,7 @@ export type LocatorDefinition =
   | { strategy: 'placeholder'; text: string }
   | { strategy: 'text'; text: string; exact?: boolean }
   | { strategy: 'testid'; value: string }
+  | { strategy: 'd365-controlname'; controlName: string } // D365-specific: data-dyn-controlname
   | { strategy: 'css'; selector: string; flagged?: boolean }
   | { strategy: 'xpath'; expression: string; flagged?: boolean };
 

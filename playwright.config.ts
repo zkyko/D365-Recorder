@@ -34,8 +34,8 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     
-    /* Use storage state for D365 authentication - path relative to repo root */
-    storageState: 'storage_state/d365.json',
+    /* Use storage state for D365 authentication - from environment variable or default */
+    storageState: process.env.STORAGE_STATE_PATH || 'storage_state/d365.json',
     
     /* Run tests in headed mode so you can see what's happening */
     headless: false,

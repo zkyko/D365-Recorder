@@ -11,7 +11,7 @@ export class BrowserManager {
   private page: Page | null = null;
 
   /**
-   * Check if storage state file exists and is valid
+   * Check if storage state file exists and is valid (basic check)
    */
   isStorageStateValid(storageStatePath?: string): boolean {
     if (!storageStatePath) return false;
@@ -27,6 +27,86 @@ export class BrowserManager {
     } catch (error) {
       return false;
     }
+  }
+
+  /**
+   * Test if storage state is valid and working by attempting to use it
+   */
+  async testStorageState(storageStatePath: string, d365Url: string): Promise<{
+    isValid: boolean;
+    isWorking: boolean;
+    error?: string;
+    details: {
+      exists: boolean;
+      hasCookies: boolean;
+      cookieCount: number;
+      canAccessD365: boolean;
+    };
+  }> {
+    const result = {
+      isValid: false,
+      isWorking: false,
+      details: {
+        exists: false,
+        hasCookies: false,
+        cookieCount: 0,
+        canAccessD365: false,
+      }
+    };
+
+    // Check 1: File exists
+    if (!fs.existsSync(storageStatePath)) {
+      return { ...result, error: 'Storage state file does not exist' };
+    }
+    result.details.exists = true;
+
+    // Check 2: Valid JSON structure with cookies
+    try {
+      const state = JSON.parse(fs.readFileSync(storageStatePath, 'utf-8'));
+      result.details.hasCookies = state.cookies && Array.isArray(state.cookies);
+      result.details.cookieCount = result.details.hasCookies ? state.cookies.length : 0;
+      result.isValid = result.details.hasCookies && result.details.cookieCount > 0;
+    } catch (error: any) {
+      return { ...result, error: `Invalid JSON: ${error.message}` };
+    }
+
+    if (!result.isValid) {
+      return { ...result, error: 'Storage state has no cookies' };
+    }
+
+    // Check 3: Actually test if it works by trying to use it
+    let testBrowser: Browser | null = null;
+    try {
+      testBrowser = await chromium.launch({ headless: true });
+      const context = await testBrowser.newContext({
+        storageState: storageStatePath,
+      });
+      const page = await context.newPage();
+      
+      // Try to navigate to D365
+      await page.goto(d365Url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 30000 
+      });
+      
+      // Check if we're logged in (not on login page)
+      const currentUrl = page.url();
+      const isOnLoginPage = currentUrl.includes('login.microsoft.com') || 
+                            currentUrl.includes('microsoftonline.com');
+      
+      result.details.canAccessD365 = !isOnLoginPage;
+      result.isWorking = result.details.canAccessD365;
+      
+      await context.close();
+      await testBrowser.close();
+    } catch (error: any) {
+      if (testBrowser) {
+        await testBrowser.close().catch(() => {});
+      }
+      return { ...result, error: `Test failed: ${error.message}` };
+    }
+
+    return result;
   }
 
   /**
@@ -88,10 +168,10 @@ export class BrowserManager {
       }
 
       onProgress?.('Navigating to D365...');
-      // Navigate with a longer timeout for D365 to load
+      // Navigate with 60 second timeout for app startup (reduced from 2 minutes)
       await this.page.goto(d365Url, { 
         waitUntil: 'domcontentloaded',
-        timeout: 120000 // 2 minute timeout for initial navigation
+        timeout: 60000 // 60 second timeout for initial navigation
       });
       
       onProgress?.('Waiting for D365 to load...');
@@ -146,7 +226,7 @@ export class BrowserManager {
       await passwordInput.press('Enter');
       await this.page.waitForTimeout(2000);
 
-      // Wait for D365 to load
+      // Wait for D365 to load (60 second timeout for app startup)
       onProgress?.('Waiting for D365 to load...');
       try {
         // Wait for URL to contain D365 domain or wait for D365-specific elements
@@ -155,11 +235,16 @@ export class BrowserManager {
           this.page.waitForSelector('[data-dyn-role="workspace"], .workspace, [aria-label*="workspace"]', { timeout: 60000 })
         ]);
       } catch (error) {
+        // Check if page was closed
+        if (this.page.isClosed()) {
+          throw new Error('Browser page was closed during login');
+        }
+        
         // Check if we're on an MFA or consent page
         const currentUrl = this.page.url();
         if (currentUrl.includes('microsoftonline.com') || currentUrl.includes('login.microsoft.com')) {
           onProgress?.('MFA or additional authentication required. Please complete in browser...');
-          // Wait for user to complete MFA manually
+          // Wait for user to complete MFA manually (longer timeout for MFA)
           await this.page.waitForURL(url => url.toString().includes('dynamics.com') || url.toString().includes('operations.dynamics.com'), { timeout: 300000 });
         } else {
           throw error;
@@ -190,10 +275,10 @@ export class BrowserManager {
       throw new Error('Browser not launched. Call launch() first.');
     }
 
-    // Navigate with a longer timeout for D365 to load
+    // Navigate with 60 second timeout (reduced from 2 minutes for faster recording start)
     await this.page.goto(url, { 
       waitUntil: 'domcontentloaded',
-      timeout: 120000 // 2 minute timeout
+      timeout: 60000 // 60 second timeout
     });
     
     // Wait for D365 to be ready
@@ -209,9 +294,23 @@ export class BrowserManager {
       return;
     }
 
+    // Check if page is still open
+    if (this.page.isClosed()) {
+      console.warn('Page was closed before waitForD365Ready could complete');
+      return;
+    }
+
     try {
-      // First, wait for DOM to be ready
-      await this.page.waitForLoadState('domcontentloaded');
+      // First, wait for DOM to be ready (with shorter timeout for app startup)
+      try {
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 60000 });
+      } catch (error) {
+        if (this.page.isClosed()) {
+          console.warn('Page closed during DOM ready wait');
+          return;
+        }
+        throw error;
+      }
       
       // Wait for D365 app shell indicators - try multiple selectors with a reasonable timeout
       const selectors = [
@@ -227,6 +326,12 @@ export class BrowserManager {
       // Use a simpler approach: try each selector with a shorter timeout
       let found = false;
       for (const selector of selectors) {
+        // Check if page is still open before each wait
+        if (this.page.isClosed()) {
+          console.warn('Page closed during selector wait');
+          return;
+        }
+        
         try {
           await this.page.waitForSelector(selector, { 
             timeout: 10000, // 10 second timeout per selector
@@ -242,24 +347,38 @@ export class BrowserManager {
       
       if (!found) {
         // If none of the selectors match, check if we're at least on a D365 URL
-        const currentUrl = this.page.url();
-        if (currentUrl.includes('dynamics.com') || currentUrl.includes('operations.dynamics.com')) {
-          console.log('D365 URL detected, proceeding even without shell elements');
-        } else {
-          console.warn('Could not detect D365 shell elements and not on D365 URL');
+        if (!this.page.isClosed()) {
+          const currentUrl = this.page.url();
+          if (currentUrl.includes('dynamics.com') || currentUrl.includes('operations.dynamics.com')) {
+            console.log('D365 URL detected, proceeding even without shell elements');
+          } else {
+            console.warn('Could not detect D365 shell elements and not on D365 URL');
+          }
         }
       }
       
-      // Give D365 a moment to finish initializing
-      await this.page.waitForTimeout(2000);
-    } catch (error) {
+      // Give D365 a moment to finish initializing (only if page is still open)
+      if (!this.page.isClosed()) {
+        await this.page.waitForTimeout(2000);
+      }
+    } catch (error: any) {
+      // If page is closed, don't try to recover
+      if (this.page.isClosed()) {
+        console.warn('Page was closed during waitForD365Ready');
+        return;
+      }
+      
       // If we can't find specific elements, at least wait for DOM to be ready
-      console.warn('Error waiting for D365 ready, falling back to DOM ready:', error);
+      console.warn('Error waiting for D365 ready, falling back to DOM ready:', error.message);
       try {
-        await this.page.waitForLoadState('domcontentloaded');
-      } catch (e) {
+        if (!this.page.isClosed()) {
+          await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+        }
+      } catch (e: any) {
         // Even DOM ready failed, but we'll proceed anyway
-        console.warn('Could not wait for DOM ready:', e);
+        if (!this.page.isClosed()) {
+          console.warn('Could not wait for DOM ready:', e.message);
+        }
       }
     }
   }

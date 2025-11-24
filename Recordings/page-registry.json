@@ -8,7 +8,7 @@
     "routePath": "/?cmp=FH&mi=DefaultDashboard",
     "url": "https://fourhands-test.sandbox.operations.dynamics.com/?cmp=FH&mi=DefaultDashboard",
     "className": "ActionCenterPage",
-    "filePath": "Recordings\\pages\\d365\\sales\\dashboard--.page.js"
+    "filePath": "Recordings/pages/d365/sales/dashboard--.page.js"
   },
   "mi:DefaultDashboard": {
     "pageId": "Dashboard--Page",
@@ -19,7 +19,7 @@
     "routePath": "/?cmp=FH&mi=DefaultDashboard",
     "url": "https://fourhands-test.sandbox.operations.dynamics.com/?cmp=FH&mi=DefaultDashboard",
     "className": "ActionCenterPage",
-    "filePath": "Recordings\\pages\\d365\\sales\\dashboard--.page.js"
+    "filePath": "Recordings/pages/d365/sales/dashboard--.page.js"
   },
   "SalesOrderDetailsPage": {
     "pageId": "SalesOrderDetailsPage",
@@ -30,7 +30,7 @@
     "routePath": "/?cmp=FH&mi=SalesTableListPage",
     "url": "https://fourhands-test.sandbox.operations.dynamics.com/?cmp=FH&mi=SalesTableListPage",
     "className": "ActionCenterPage",
-    "filePath": "Recordings\\pages\\d365\\sales\\sales-order-details.page.js"
+    "filePath": "Recordings/pages/d365/sales/sales-order-details.page.js"
   },
   "mi:SalesTableListPage": {
     "pageId": "SalesOrderDetailsPage",
@@ -41,6 +41,6 @@
     "routePath": "/?cmp=FH&mi=SalesTableListPage",
     "url": "https://fourhands-test.sandbox.operations.dynamics.com/?cmp=FH&mi=SalesTableListPage",
     "className": "ActionCenterPage",
-    "filePath": "Recordings\\pages\\d365\\sales\\sales-order-details.page.js"
+    "filePath": "Recordings/pages/d365/sales/sales-order-details.page.js"
   }
 }

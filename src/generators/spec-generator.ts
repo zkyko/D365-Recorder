@@ -3,7 +3,7 @@ import { RecordedStep, GeneratedFile } from '../types';
 import { PageRegistryManager } from '../core/registry/page-registry';
 
 /**
- * Generates Playwright test spec files in JavaScript
+ * Generates Playwright test spec files in TypeScript
  */
 export class SpecGenerator {
   private pageRegistry: PageRegistryManager;
@@ -43,23 +43,73 @@ export class SpecGenerator {
       const filePath = path.join(outputDir, modulePath, `${fileName}.generated.spec.js`);
       return {
         path: filePath,
-        content: `const { test } = require('@playwright/test');\n\ntest('${this.formatTestName(flowName)} - auto generated', async ({ page }) => {\n  // No valid steps recorded\n});\n`,
+        content: `import { test } from '@playwright/test';\n\ntest('${this.formatTestName(flowName)} - auto generated', async ({ page }) => {\n  // No valid steps recorded\n});\n`,
         type: 'spec',
       };
     }
 
-    const fileName = this.flowNameToFileName(flowName);
-    const modulePath = module ? path.join('d365', module) : 'd365';
-    const specDir = path.join(outputDir, modulePath);
-    const filePath = path.join(specDir, `${fileName}.generated.spec.js`);
+      const fileName = this.flowNameToFileName(flowName);
+      const modulePath = module ? path.join('d365', module) : 'd365';
+      const specDir = path.join(outputDir, modulePath);
+      const filePath = path.join(specDir, `${fileName}.generated.spec.ts`);
 
-    const content = this.generateSpecContent(flowName, validSteps, filePath, pagesDir, module);
+    // Always generate data-driven tests with a data file path
+    // The data file will be created/edited in the Test Runner UI
+    const dataDir = path.join(specDir, 'data');
+    const dataFilePath = path.join(dataDir, `${fileName}Data.json`);
+    
+    const content = this.generateSpecContent(flowName, validSteps, filePath, pagesDir, module, dataFilePath);
 
     return {
       path: filePath,
       content,
       type: 'spec',
     };
+  }
+  
+  /**
+   * Detect parameters from steps that will be used in data-driven tests
+   * Public method for use in bridge
+   */
+  detectParametersFromSteps(steps: RecordedStep[]): string[] {
+    const parameters = new Set<string>();
+    
+    for (const step of steps) {
+      if (step.action === 'fill' || step.action === 'select') {
+        const methodName = step.methodName || this.inferMethodName(step);
+        const fieldName = this.extractFieldNameFromMethod(methodName);
+        if (fieldName) {
+          parameters.add(fieldName);
+        }
+      }
+    }
+    
+    return Array.from(parameters).sort();
+  }
+  
+  /**
+   * Generate initial data file content with detected parameters
+   * Public method for use in bridge
+   */
+  generateInitialDataFile(parameters: string[]): string {
+    if (parameters.length === 0) {
+      // Default structure if no parameters detected
+      return JSON.stringify([{
+        testCaseId: 'test-1',
+        name: 'Test Order',
+      }], null, 2);
+    }
+    
+    // Create initial data object with all parameters
+    const initialData: any = {
+      testCaseId: 'test-1',
+    };
+    
+    for (const param of parameters) {
+      initialData[param] = '';
+    }
+    
+    return JSON.stringify([initialData], null, 2);
   }
 
   /**
@@ -70,9 +120,18 @@ export class SpecGenerator {
     steps: RecordedStep[],
     specFilePath: string,
     pagesDir: string,
-    module?: string
+    module?: string,
+    dataFilePath?: string // Optional JSON data file for data-driven tests
   ): string {
-    let content = `const { test, expect } = require('@playwright/test');\n\n`;
+    let content = `import { test, expect } from '@playwright/test';\n`;
+    
+    // Always import data file for data-driven tests
+    // If dataFilePath is provided, use it; otherwise create a default path
+    const finalDataFilePath = dataFilePath || path.join(path.dirname(specFilePath), 'data', `${this.flowNameToFileName(flowName)}Data.json`);
+    const relativeDataPath = this.buildRelativeImportPath(specFilePath, finalDataFilePath);
+    content += `import dataSet from '${relativeDataPath}';\n`;
+    
+    content += `\n`;
 
     // Group steps by pageId to determine imports
     const pageIds = new Set<string>();
@@ -87,7 +146,7 @@ export class SpecGenerator {
       const safeClassName = registryEntry?.className || this.makePageClassName(pageId);
       const pageFileName = this.pageIdToFileName(pageId);
       const importPath = this.buildPageImportPath(specFilePath, pagesDir, `${pageFileName}.page`);
-      content += `const { ${safeClassName} } = require('${importPath}');\n`;
+      content += `import { ${safeClassName} } from '${importPath}';\n`;
     }
 
     content += `\n`;
@@ -114,8 +173,17 @@ export class SpecGenerator {
     content += `  throw new Error('D365 shell did not appear – maybe login page or wrong URL?');\n`;
     content += `}\n`;
     content += `\n`;
-    content += `test('${this.formatTestName(flowName)} - auto generated', async ({ page }) => {\n`;
-    content += `  test.setTimeout(120_000); // 2 minutes for D365 to wake up\n\n`;
+    // Always generate data-driven test structure
+    content += `test.describe('${this.formatTestName(flowName)} - Data Driven', () => {\n`;
+    content += `  for (const data of dataSet) {\n`;
+    content += `    test(\`\${data.testCaseId || data.id || data.name || 'Test'}\`, async ({ page }, testInfo) => {\n`;
+    content += `      test.setTimeout(120_000); // 2 minutes for D365 to wake up\n\n`;
+    // Attach test data for audit trail
+    content += `      // ATTACH DATA FOR AUDIT\n`;
+    content += `      await testInfo.attach('test-data', {\n`;
+    content += `        body: JSON.stringify(data, null, 2),\n`;
+    content += `        contentType: 'application/json'\n`;
+    content += `      });\n\n`;
 
     // Initial navigation - go to first page with actions using POM.goto() if available
     // Otherwise fallback to base URL
@@ -130,24 +198,24 @@ export class SpecGenerator {
       if (firstPageEntry && firstPageEntry.mi) {
         // Use POM.goto() for URL-aware navigation
         const cmp = firstPageEntry.cmp || 'FH';
-        content += `  // Navigate to first page using POM.goto()\n`;
-        content += `  await ${firstPageClassName}.goto(page, { cmp: '${cmp}' });\n\n`;
+        content += `      // Navigate to first page using POM.goto()\n`;
+        content += `      await ${firstPageClassName}.goto(page, { cmp: '${cmp}' });\n\n`;
         hasInitialNavigation = true;
       }
     }
     
     if (!hasInitialNavigation) {
       // Fallback to base URL - use finite timeouts
-      content += `  // Navigate to base URL (uses baseURL from playwright.config.ts)\n`;
-      content += `  await page.goto('/', { waitUntil: 'domcontentloaded' });\n`;
-      content += `  \n`;
-      content += `  // Verify storage state was loaded (debugging)\n`;
-      content += `  const cookies = await page.context().cookies();\n`;
-      content += `  console.log('[Test] Loaded', cookies.length, 'cookies from storage state');\n`;
-      content += `  \n`;
-      content += `  // Wait for D365 shell to appear\n`;
-      content += `  await waitForD365Shell(page);\n`;
-      content += `  await page.waitForTimeout(2000); // small extra buffer\n\n`;
+      content += `      // Navigate to base URL (uses baseURL from playwright.config.ts)\n`;
+      content += `      await page.goto('/', { waitUntil: 'domcontentloaded' });\n`;
+      content += `      \n`;
+      content += `      // Verify storage state was loaded (debugging)\n`;
+      content += `      const cookies = await page.context().cookies();\n`;
+      content += `      console.log('[Test] Loaded', cookies.length, 'cookies from storage state');\n`;
+      content += `      \n`;
+      content += `      // Wait for D365 shell to appear\n`;
+      content += `      await waitForD365Shell(page);\n`;
+      content += `      await page.waitForTimeout(2000); // small extra buffer\n\n`;
     }
 
     // Create page object instances with safe names
@@ -158,7 +226,7 @@ export class SpecGenerator {
       const safeClassName = registryEntry?.className || this.makePageClassName(pageId);
       const instanceName = this.toCamelCase(pageId);
       pageInstances.set(pageId, instanceName);
-      content += `  const ${instanceName} = new ${safeClassName}(page);\n`;
+      content += `      const ${instanceName} = new ${safeClassName}(page);\n`;
     }
 
     content += `\n`;
@@ -180,25 +248,28 @@ export class SpecGenerator {
         if (pageEntry && pageEntry.mi && currentPageId !== null) {
           // Navigate to new page using POM.goto() - this is more reliable than replaying clicks
           const cmp = pageEntry.cmp || step.cmp || 'FH';
-          content += `  // Navigate to ${step.pageId} using POM.goto()\n`;
-          content += `  await ${pageClassName}.goto(page, { cmp: '${cmp}' });\n\n`;
+          content += `      // Navigate to ${step.pageId} using POM.goto()\n`;
+          content += `      await ${pageClassName}.goto(page, { cmp: '${cmp}' });\n\n`;
         } else if (currentPageId === null && !hasInitialNavigation) {
           // First page, already handled above
         } else {
           // No URL navigation available (no mi parameter), just add comment
-          content += `  // ${step.pageId} (no URL navigation available)\n`;
+          content += `      // ${step.pageId} (no URL navigation available)\n`;
         }
         currentPageId = step.pageId;
       }
 
       const instanceName = pageInstances.get(step.pageId) || 'page';
-      const methodCall = this.generateMethodCall(step, instanceName);
+      // Always use data source for parameterized values
+      const methodCall = this.generateMethodCall(step, instanceName, 'data');
       
-      content += `  ${methodCall}\n`;
+      content += `      ${methodCall}\n`;
     }
 
     content += `\n`;
-    content += `  // TODO: add assertions manually\n`;
+    content += `      // TODO: add assertions manually\n`;
+    content += `    });\n`;
+    content += `  }\n`;
     content += `});\n`;
 
     return content;
@@ -206,22 +277,55 @@ export class SpecGenerator {
 
   /**
    * Generate a method call from a step
+   * @param dataSource - If 'data', use data object for values (data-driven tests)
    */
-  private generateMethodCall(step: RecordedStep, instanceName: string): string {
+  private generateMethodCall(step: RecordedStep, instanceName: string, dataSource?: string): string {
     // Don't generate goto() calls - navigation is handled at the start
     if (step.action === 'navigate') {
-      return `  // Navigation to ${step.pageId} (handled by initial page.goto())`;
+      return `// Navigation to ${step.pageId} (handled by initial page.goto())`;
     }
 
     // Use methodName from step if available, otherwise infer it
     const methodName = step.methodName || this.inferMethodName(step);
     
     if (step.action === 'fill' || step.action === 'select') {
-      const value = step.value ? `'${this.escapeString(step.value)}'` : 'value';
+      let value: string;
+      
+      if (dataSource === 'data') {
+        // For data-driven tests, try to map JSON keys to method parameters
+        // Extract field name from method name (e.g., "fillCustomerAccount" -> "customerAccount")
+        const fieldName = this.extractFieldNameFromMethod(methodName);
+        // Try camelCase and various formats
+        const possibleKeys = [
+          fieldName,
+          this.toCamelCase(fieldName),
+          fieldName.toLowerCase(),
+          step.description.match(/["']([^"']+)["']/)?.[1]?.replace(/\s+/g, '') || fieldName
+        ];
+        
+        // Use first possible key that makes sense, or fallback to generic
+        const dataKey = possibleKeys.find(k => k && k.length > 0) || 'value';
+        value = `data.${dataKey}`;
+      } else {
+        // Use recorded value or placeholder
+        value = step.value ? `'${this.escapeString(step.value)}'` : 'value';
+      }
+      
       return `await ${instanceName}.${methodName}(${value});`;
     } else {
       return `await ${instanceName}.${methodName}();`;
     }
+  }
+
+  /**
+   * Extract field name from method name for data mapping
+   * e.g., "fillCustomerAccount" -> "customerAccount"
+   */
+  private extractFieldNameFromMethod(methodName: string): string {
+    // Remove action prefix (fill, select, click, etc.)
+    const withoutAction = methodName.replace(/^(fill|select|click|set)/i, '');
+    // Convert to camelCase
+    return withoutAction.charAt(0).toLowerCase() + withoutAction.slice(1);
   }
 
   /**
@@ -262,7 +366,10 @@ export class SpecGenerator {
   /**
    * Convert flow name to file name
    */
-  private flowNameToFileName(flowName: string): string {
+  /**
+   * Convert flow name to file name (public for use in bridge)
+   */
+  flowNameToFileName(flowName: string): string {
     return flowName
       .toLowerCase()
       .replace(/\s+/g, '-')
@@ -394,11 +501,13 @@ export class SpecGenerator {
     // Now compute the relative import path from specDir to pageFileFull
     let relative = path.relative(normalizedSpecDir, pageFileFull);
     
-    // Normalize to POSIX-style (forward slashes) for require()
+    // Normalize to POSIX-style (forward slashes) for import
     relative = relative.split(path.sep).join('/');
     
-    // Strip ".js" extension for require()
-    if (relative.endsWith('.js')) {
+    // Strip ".ts" or ".js" extension for import
+    if (relative.endsWith('.ts')) {
+      relative = relative.slice(0, -3);
+    } else if (relative.endsWith('.js')) {
       relative = relative.slice(0, -3);
     }
     
@@ -408,6 +517,25 @@ export class SpecGenerator {
     }
     
     return relative;
+  }
+
+  /**
+   * Build relative import path for data files (JSON)
+   */
+  private buildRelativeImportPath(fromPath: string, toPath: string): string {
+    const fromDir = path.dirname(fromPath);
+    const relative = path.relative(fromDir, toPath);
+    const normalized = relative.split(path.sep).join('/');
+    
+    // Strip .json extension for import
+    const withoutExt = normalized.endsWith('.json') ? normalized.slice(0, -5) : normalized;
+    
+    // Prepend "./" if needed
+    if (!withoutExt.startsWith('.') && !withoutExt.startsWith('/')) {
+      return './' + withoutExt;
+    }
+    
+    return withoutExt;
   }
 
   /**

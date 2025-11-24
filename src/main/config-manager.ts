@@ -8,6 +8,8 @@ interface ConfigSchema {
   d365Url: string;
   storageStatePath: string;
   isSetupComplete: boolean;
+  browserstackUsername?: string;
+  browserstackAccessKey?: string;
 }
 
 /**
@@ -30,6 +32,8 @@ export class ConfigManager {
         d365Url: '',
         storageStatePath: '',
         isSetupComplete: false,
+        browserstackUsername: '',
+        browserstackAccessKey: '',
       },
     });
     // Type assertion to access get/set methods
@@ -120,5 +124,23 @@ export class ConfigManager {
   getStorageStatePath(): string {
     const storageDir = this.getStorageStateDir();
     return path.join(storageDir, 'd365.json');
+  }
+
+  /**
+   * Get BrowserStack credentials
+   */
+  getBrowserStackCredentials(): { username: string | undefined; accessKey: string | undefined } {
+    return {
+      username: this.storeAccess.get('browserstackUsername') || undefined,
+      accessKey: this.storeAccess.get('browserstackAccessKey') || undefined,
+    };
+  }
+
+  /**
+   * Set BrowserStack credentials
+   */
+  setBrowserStackCredentials(username: string, accessKey: string): void {
+    this.storeAccess.set('browserstackUsername', username);
+    this.storeAccess.set('browserstackAccessKey', accessKey);
   }
 }

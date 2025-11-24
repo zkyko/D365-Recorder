@@ -4,6 +4,8 @@ import RecordingPanel from './components/RecordingPanel';
 import StepReview from './components/StepReview';
 import CodeGeneration from './components/CodeGeneration';
 import LoginDialog from './components/LoginDialog';
+import SetupScreen from './components/SetupScreen';
+import TestRunner from './components/TestRunner';
 import './App.css';
 
 interface Session {
@@ -21,7 +23,7 @@ interface AppConfig {
 
 function App() {
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
-  const [activeTab, setActiveTab] = useState<'setup' | 'recording' | 'review' | 'generate'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'recording' | 'review' | 'generate' | 'runner'>('setup');
   const [showLogin, setShowLogin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -90,6 +92,11 @@ function App() {
     setActiveTab('generate');
   };
 
+  const handleGoToSetupForAuth = () => {
+    // Show login dialog for re-authentication
+    setShowLogin(true);
+  };
+
   // Show loading while config loads
   if (isLoadingConfig || !config) {
     return (
@@ -153,12 +160,21 @@ function App() {
           >
             Generate
           </button>
+          <button
+            className={activeTab === 'runner' ? 'active' : ''}
+            onClick={() => setActiveTab('runner')}
+          >
+            Test Runner
+          </button>
         </nav>
       </header>
 
       <main className="app-main">
         {activeTab === 'setup' && (
-          <SessionSetup onSessionStart={handleSessionStart} />
+          <SessionSetup 
+            onSessionStart={handleSessionStart}
+            onGoToSetup={handleGoToSetupForAuth}
+          />
         )}
         {activeTab === 'recording' && currentSession && (
           <RecordingPanel
@@ -174,6 +190,9 @@ function App() {
         )}
         {activeTab === 'generate' && currentSession && (
           <CodeGeneration sessionId={currentSession.id} />
+        )}
+        {activeTab === 'runner' && (
+          <TestRunner />
         )}
       </main>
     </div>
