@@ -195,29 +195,15 @@ export class TestExecutor {
     // Get project root
     const projectRoot = this.findProjectRoot();
     
-    // Check if cross-env is available (for Windows compatibility)
-    const hasCrossEnv = fs.existsSync(path.join(projectRoot, 'node_modules', '.bin', 'cross-env')) ||
-                       fs.existsSync(path.join(projectRoot, 'node_modules', '.bin', 'cross-env.cmd'));
-
-    // Spawn playwright test command with BrowserStack config
+    // Spawn playwright test command wrapped with BrowserStack Node SDK for observability
     const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    const args = hasCrossEnv
-      ? [
-          'cross-env',
-          `BROWSERSTACK_USERNAME=${credentials.username}`,
-          `BROWSERSTACK_ACCESS_KEY=${credentials.accessKey}`,
-          'npx',
-          'playwright',
-          'test',
-          relativeSpecPath, // Use relative path from project testDir
-          '--config=playwright.browserstack.config.ts',
-        ]
-      : [
-          'playwright',
-          'test',
-          relativeSpecPath, // Use relative path from project testDir
-          '--config=playwright.browserstack.config.ts',
-        ];
+    const args = [
+      'browserstack-node-sdk',
+      'playwright',
+      'test',
+      relativeSpecPath, // Use relative path from project testDir
+      '--config=playwright.browserstack.config.ts',
+    ];
 
     // Get storage state path from config
     const config = this.configManager.getConfig();

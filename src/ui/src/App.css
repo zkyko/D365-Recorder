@@ -3,51 +3,130 @@
   flex-direction: column;
   height: 100vh;
   width: 100%;
+  background: var(--bg-secondary);
 }
 
 .app-header {
-  background-color: #2c3e50;
-  color: white;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+  color: var(--text-inverse);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 10;
+}
+
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  pointer-events: none;
 }
 
 .app-header h1 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+  position: relative;
+  z-index: 1;
 }
 
 .app-nav {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
 .app-nav button {
-  padding: 0.5rem 1rem;
-  background-color: #34495e;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-inverse);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all var(--transition);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-nav button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--transition-slow);
+}
+
+.app-nav button:hover:not(:disabled)::before {
+  left: 100%;
 }
 
 .app-nav button:hover:not(:disabled) {
-  background-color: #4a5f7a;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .app-nav button.active {
-  background-color: #3498db;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+}
+
+.app-nav button.active:hover {
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
 }
 
 .app-nav button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
 .app-main {
   flex: 1;
-  padding: 2rem;
+  padding: var(--spacing-xl);
   overflow-y: auto;
+  background: var(--bg-secondary);
+  position: relative;
+}
+
+.app-main::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-main > * {
+  position: relative;
+  z-index: 1;
 }
 

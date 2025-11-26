@@ -1,99 +1,170 @@
 .session-setup {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-light);
 }
 
 .session-setup h2 {
-  margin-bottom: 1.5rem;
-  color: #2c3e50;
+  margin-bottom: var(--spacing-xl);
+  color: var(--text-primary);
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #34495e;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
 }
 
 .form-group input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius);
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: all var(--transition);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.form-group input:hover {
+  border-color: var(--border-medium);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: var(--bg-primary);
 }
 
 .form-group input:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--bg-tertiary);
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-group input::placeholder {
+  color: var(--text-tertiary);
 }
 
 .error-message {
-  padding: 1rem;
-  background-color: #fee;
-  color: #c33;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: var(--error-dark);
+  border-radius: var(--radius);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid #fca5a5;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
 }
 
 .start-button {
   width: 100%;
-  padding: 1rem;
-  background-color: #27ae60;
-  color: white;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
+  color: var(--text-inverse);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.start-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--transition-slow);
+}
+
+.start-button:hover:not(:disabled)::before {
+  left: 100%;
 }
 
 .start-button:hover:not(:disabled) {
-  background-color: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.start-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .start-button:disabled {
-  background-color: #95a5a6;
+  background: var(--gray-400);
   cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.6;
 }
 
 /* Storage State Status Styles */
 .storage-state-status {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 2px solid;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.storage-state-status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: currentColor;
+  opacity: 0.3;
 }
 
 .storage-state-status.storage-state-valid {
-  background-color: #d4edda;
-  border-color: #c3e6cb;
-  color: #155724;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: var(--success);
+  color: #065f46;
 }
 
 .storage-state-status.storage-state-missing,
 .storage-state-status.storage-state-invalid,
 .storage-state-status.storage-state-expired {
-  background-color: #fff3cd;
-  border-color: #ffeaa7;
-  color: #856404;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: var(--warning);
+  color: #92400e;
 }
 
 .storage-state-status.storage-state-error {
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  color: #721c24;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: var(--error);
+  color: #991b1b;
 }
 
 .storage-state-header {
@@ -104,11 +175,15 @@
 }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: bold;
-  background-color: rgba(255, 255, 255, 0.3);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-sm);
 }
 
 .storage-state-message {
@@ -148,72 +223,104 @@
 }
 
 .action-button {
-  padding: 0.5rem 1rem;
+  padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.action-button:hover:not(:disabled)::before {
+  width: 300px;
+  height: 300px;
 }
 
 .action-button.primary {
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--text-inverse);
 }
 
 .action-button.primary:hover:not(:disabled) {
-  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .action-button.secondary {
-  background-color: #6c757d;
-  color: white;
+  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
+  color: var(--text-inverse);
 }
 
 .action-button.secondary:hover:not(:disabled) {
-  background-color: #545b62;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .action-button:disabled {
-  background-color: #ccc;
+  background: var(--gray-300);
   cursor: not-allowed;
   opacity: 0.6;
+  box-shadow: none;
 }
 
 /* Inline Authentication Form */
 .auth-form-inline {
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-xl);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
 }
 
 .auth-form-inline h3 {
   margin-top: 0;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .auth-form-description {
-  margin-bottom: 1rem;
-  color: #6c757d;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
   font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .auth-progress {
-  margin: 0.75rem 0;
-  padding: 0.5rem;
-  background-color: #e7f3ff;
-  color: #0066cc;
-  border-radius: 4px;
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: var(--info);
+  border-radius: var(--radius);
   font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #93c5fd;
+  box-shadow: var(--shadow-sm);
 }
 
 .auth-form-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  flex-wrap: wrap;
 }
 

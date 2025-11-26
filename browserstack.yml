@@ -1,0 +1,12 @@
+userName: nbhandari_KMkNq9
+accessKey: 1tnaMGT6bqxfiTNX9zd7
+projectName: "D365 Auto-Recorder"
+buildName: "Recorder Test Build"
+CUSTOM_TAG_1: "Playwright"
+CUSTOM_TAG_2: "D365"
+testObservability: true
+browserstackAutomation: true
+framework: playwright
+playwrightConfigOptions:
+  use:
+    trace: 'on'
